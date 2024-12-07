@@ -41,7 +41,7 @@ void drawTimon() {
 
     // Head inside the body
        glColor3f(0.9f, 0.8f, 0.6f);
-       //drawCircle(-0.6f, -0.1f, 0.15f, 50); // Circle for the head (moved to be inside the body)
+      
     
     
     // Eyes
