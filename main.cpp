@@ -1,227 +1,393 @@
+#include <glut.h>
+#include <cstdio>
 
-//eslam Khalil 202200486
-// Amr Adel 202200382
-#include <GLUT/glut.h>
-#include <cmath>
-#include <vector>
-using namespace std;
-#include <iostream>
 
-// Global variable to track game state
-bool gameOver = false;
-bool playerWon = false;
+// Initial positions of characters
+float timonX = 0.3f, timonY = -0.7f;
+float bombaX = 0.5f, bombaY = -0.7f;
+float enemyX = -0.5f, enemyY = -0.7f;
 
-float SpongpopSpeed = 0.05f;  // Speed of pop
-float PatrickSpeed = 0.05f;  // Speed of baset 2
-
-float spongeBobX = -0.5f, spongeBobY = 0.0f;
-float patrickX = 0.3f, patrickY = -0.1f;
-float characterSpeed = 0.05f;
-
-// Function to draw a circle
-void drawCircle(float x, float y, float radius, int segments) {
-    glBegin(GL_POLYGON);
-    for (int i = 0; i < segments; ++i) {
-        float angle = 2.0f * 3.14159f * i / segments;
-        glVertex2f(x + cos(angle) * radius, y + sin(angle) * radius);
-    }
-    glEnd();
+// Variables to track lives
+int timonLives = 3;
+int bombaLives = 3;
+int enemyLives = 3;
+// Collision detection function
+bool checkCollision(float objX, float objY, float projX, float projY, float size) {
+    return projX >= objX - size && projX <= objX + size &&
+        projY >= objY - size && projY <= objY + size;
 }
 
-// Function to draw a rectangle
-void drawRectangle(float x1, float y1, float x2, float y2) {
+// Maximum number of projectiles that can be active at once
+const int MAX_PROJECTILES = 10;
+struct Projectile {
+    float x, y, directionX, directionY;
+    bool isActive;
+};
+
+// Arrays to hold projectiles for Timon, Bomba, and Enemy
+Projectile timonProjectiles[MAX_PROJECTILES];
+Projectile bombaProjectiles[MAX_PROJECTILES];
+Projectile enemyProjectiles[MAX_PROJECTILES];
+
+// Draw trees for the forest
+void drawTree(float x, float y) {
+    glColor3f(0.4f, 0.2f, 0.0f); // Brown color for tree trunk
     glBegin(GL_QUADS);
-    glVertex2f(x1, y1);
-    glVertex2f(x2, y1);
-    glVertex2f(x2, y2);
-    glVertex2f(x1, y2);
+    glVertex2f(x - 0.05f, y);
+    glVertex2f(x + 0.05f, y);
+    glVertex2f(x + 0.05f, y + 0.2f);
+    glVertex2f(x - 0.05f, y + 0.2f);
+    glEnd();
+
+    glColor3f(0.0f, 0.6f, 0.0f); // Green color for tree leaves
+    glBegin(GL_TRIANGLES);
+    glVertex2f(x - 0.15f, y + 0.2f);
+    glVertex2f(x + 0.15f, y + 0.2f);
+    glVertex2f(x, y + 0.4f);
     glEnd();
 }
 
-// Function to draw SpongeBob
-void drawSpongeBob() {
-    // Body
-    glColor3f(1.0f, 1.0f, 0.0f); // Yellow
-    drawRectangle(spongeBobX - 0.1f, spongeBobY - 0.4f, spongeBobX + 0.1f, spongeBobY + 0.2f);
+// Draw the forest background with trees
+void drawForest() {
+    glColor3f(0.2f, 0.6f, 0.2f); // Green for grass
+    glBegin(GL_QUADS);
+    glVertex2f(-1.0f, -1.0f);
+    glVertex2f(1.0f, -1.0f);
+    glVertex2f(1.0f, -0.8f);
+    glVertex2f(-1.0f, -0.8f);
+    glEnd();
 
-    // Pants
-    glColor3f(0.4f, 0.2f, 0.0f); // Brown
-    drawRectangle(spongeBobX - 0.1f, spongeBobY - 0.4f, spongeBobX + 0.1f, spongeBobY - 0.2f);
+    drawTree(-0.8f, -0.7f);
+    drawTree(-0.5f, -0.6f);
+    drawTree(0.2f, -0.5f);
+    drawTree(0.6f, -0.6f);
+    drawTree(0.9f, -0.7f);
+}
 
-    // Legs
-    glColor3f(1.0f, 1.0f, 0.0f); // Yellow for legs
-    drawRectangle(spongeBobX - 0.08f, spongeBobY - 0.6f, spongeBobX - 0.04f, spongeBobY - 0.4f); // Left leg
-    drawRectangle(spongeBobX + 0.04f, spongeBobY - 0.6f, spongeBobX + 0.08f, spongeBobY - 0.4f); // Right leg
+// Draw Timon character
+void drawTimon() {
+    glColor3f(1.0f, 0.0f, 0.0f); // Red for body
+    glBegin(GL_QUADS);
+    glVertex2f(timonX - 0.1f, timonY + 0.25f);
+    glVertex2f(timonX + 0.1f, timonY + 0.25f);
+    glVertex2f(timonX + 0.1f, timonY + 0.35f);
+    glVertex2f(timonX - 0.1f, timonY + 0.35f);
+    glEnd();
 
-    // Shoes
-    glColor3f(0.0f, 0.0f, 0.0f); // Black
-    drawRectangle(spongeBobX - 0.08f, spongeBobY - 0.65f, spongeBobX - 0.04f, spongeBobY - 0.6f); // Left shoe
-    drawRectangle(spongeBobX + 0.04f, spongeBobY - 0.65f, spongeBobX + 0.08f, spongeBobY - 0.6f); // Right shoe
+    glColor3f(0.8f, 0.0f, 0.0f); // Dark red for arms
+    glBegin(GL_QUADS);
+    glVertex2f(timonX - 0.05f, timonY + 0.05f);
+    glVertex2f(timonX + 0.05f, timonY + 0.05f);
+    glVertex2f(timonX + 0.05f, timonY + 0.25f);
+    glVertex2f(timonX - 0.05f, timonY + 0.25f);
+    glEnd();
 
-    // Eyes
-    glColor3f(1.0f, 1.0f, 1.0f); // White
-    drawCircle(spongeBobX - 0.05f, spongeBobY + 0.1f, 0.05f, 30); // Left eye
-    drawCircle(spongeBobX + 0.05f, spongeBobY + 0.1f, 0.05f, 30); // Right eye
-
-    glColor3f(0.0f, 0.0f, 1.0f); // Blue
-    drawCircle(spongeBobX - 0.05f, spongeBobY + 0.1f, 0.025f, 30); // Left pupil
-    drawCircle(spongeBobX + 0.05f, spongeBobY + 0.1f, 0.025f, 30); // Right pupil
-
-    // Mouth
-    glColor3f(1.0f, 0.0f, 0.0f); // Red
-    glBegin(GL_LINE_STRIP);
-    glVertex2f(spongeBobX - 0.07f, spongeBobY - 0.05f);
-    glVertex2f(spongeBobX - 0.05f, spongeBobY - 0.1f);
-    glVertex2f(spongeBobX + 0.05f, spongeBobY - 0.1f);
-    glVertex2f(spongeBobX + 0.07f, spongeBobY - 0.05f);
+    glColor3f(1.0f, 0.5f, 0.0f); // Brown for legs
+    glBegin(GL_LINES);
+    glVertex2f(timonX - 0.1f, timonY + 0.15f);
+    glVertex2f(timonX - 0.2f, timonY + 0.05f);
+    glVertex2f(timonX + 0.1f, timonY + 0.15f);
+    glVertex2f(timonX + 0.2f, timonY + 0.05f);
     glEnd();
 }
 
-// Function to draw Patrick Star
-void drawPatrick() {
-    // Body
-    glColor3f(1.0f, 0.5f, 0.5f); // Pink
-    drawCircle(patrickX, patrickY, 0.3f, 50);
+// Draw Bomba character
+void drawBomba() {
+    glColor3f(0.0f, 0.0f, 1.0f); // Blue for body
+    glBegin(GL_QUADS);
+    glVertex2f(bombaX - 0.1f, bombaY + 0.25f);
+    glVertex2f(bombaX + 0.1f, bombaY + 0.25f);
+    glVertex2f(bombaX + 0.1f, bombaY + 0.35f);
+    glVertex2f(bombaX - 0.1f, bombaY + 0.35f);
+    glEnd();
 
-    // Shorts
-    glColor3f(0.0f, 1.0f, 0.0f); // Green
-    drawRectangle(patrickX - 0.15f, patrickY - 0.3f, patrickX + 0.15f, patrickY);
-
-    // Legs
-    glColor3f(1.0f, 0.5f, 0.5f); // Pink
-    drawRectangle(patrickX - 0.1f, patrickY - 0.5f, patrickX - 0.05f, patrickY - 0.3f); // Left leg
-    drawRectangle(patrickX + 0.05f, patrickY - 0.5f, patrickX + 0.1f, patrickY - 0.3f); // Right leg
-
-    // Feet
-    glColor3f(0.0f, 0.0f, 0.0f); // Black
-    drawCircle(patrickX - 0.075f, patrickY - 0.55f, 0.05f, 20); // Left foot
-    drawCircle(patrickX + 0.075f, patrickY - 0.55f, 0.05f, 20); // Right foot
-
-    // Eyes
-    glColor3f(1.0f, 1.0f, 1.0f); // White
-    drawCircle(patrickX - 0.05f, patrickY + 0.2f, 0.05f, 30); // Left eye
-    drawCircle(patrickX + 0.05f, patrickY + 0.2f, 0.05f, 30); // Right eye
-
-    glColor3f(0.0f, 0.0f, 0.0f); // Black pupils
-    drawCircle(patrickX - 0.05f, patrickY + 0.2f, 0.025f, 30); // Left pupil
-    drawCircle(patrickX + 0.05f, patrickY + 0.2f, 0.025f, 30); // Right pupil
-
-    // Mouth
-    glColor3f(0.0f, 0.0f, 0.0f); // Black
-    glBegin(GL_LINE_STRIP);
-    glVertex2f(patrickX - 0.1f, patrickY - 0.1f);
-    glVertex2f(patrickX, patrickY - 0.15f);
-    glVertex2f(patrickX + 0.1f, patrickY - 0.1f);
+    glColor3f(0.0f, 0.0f, 0.8f); // Dark blue for arms
+    glBegin(GL_QUADS);
+    glVertex2f(bombaX - 0.05f, bombaY + 0.05f);
+    glVertex2f(bombaX + 0.05f, bombaY + 0.05f);
+    glVertex2f(bombaX + 0.05f, bombaY + 0.25f);
+    glVertex2f(bombaX - 0.05f, bombaY + 0.25f);
     glEnd();
 }
 
-// Function to move SpongeBob
-void moveSpongeBob(int key) {
-    if (key == GLUT_KEY_UP) spongeBobY += characterSpeed;
-    else if (key == GLUT_KEY_DOWN) spongeBobY -= characterSpeed;
-    else if (key == GLUT_KEY_LEFT) spongeBobX -= characterSpeed;
-    else if (key == GLUT_KEY_RIGHT) spongeBobX += characterSpeed;
+// Draw Enemy character
+void drawEnemy() {
+    glColor3f(0.0f, 1.0f, 0.0f); // Green for body
+    glBegin(GL_QUADS);
+    glVertex2f(enemyX - 0.1f, enemyY + 0.25f);
+    glVertex2f(enemyX + 0.1f, enemyY + 0.25f);
+    glVertex2f(enemyX + 0.1f, enemyY + 0.35f);
+    glVertex2f(enemyX - 0.1f, enemyY + 0.35f);
+    glEnd();
+
+    glColor3f(0.0f, 0.6f, 0.0f); // Dark green for arms
+    glBegin(GL_QUADS);
+    glVertex2f(enemyX - 0.05f, enemyY + 0.05f);
+    glVertex2f(enemyX + 0.05f, enemyY + 0.05f);
+    glVertex2f(enemyX + 0.05f, enemyY + 0.25f);
+    glVertex2f(enemyX - 0.05f, enemyY + 0.25f);
+    glEnd();
 }
 
-// Function to move Patrick
-void movePatrick(unsigned char key, int x, int y) {
-    if (key == 'w') patrickY += characterSpeed;
-    else if (key == 's') patrickY -= characterSpeed;
-    else if (key == 'a') patrickX -= characterSpeed;
-    else if (key == 'd') patrickX += characterSpeed;
+// Handle special key press for Timon
+void specialKeys(int key, int x, int y) {
+    if (key == GLUT_KEY_LEFT) timonX -= 0.05f;
+    if (key == GLUT_KEY_RIGHT) timonX += 0.05f;
+    if (key == GLUT_KEY_UP) timonY += 0.05f;
+    if (key == GLUT_KEY_DOWN) timonY -= 0.05f;
+
+    glutPostRedisplay();
 }
 
-// Function to handle key release
-void keyRelease(unsigned char key, int x, int y) {
-    // Speed control for Zombie 1 and Zombie 2
-    if (key == '+') {
-        SpongpopSpeed += 0.01f;
-        PatrickSpeed += 0.01f;
-    }
-    if (key == '-') {
-        SpongpopSpeed = max(0.01f, SpongpopSpeed - 0.01f);
-        PatrickSpeed = max(0.01f, PatrickSpeed - 0.01f);
-    }
-}
+// Handle regular key press for Bomba, Timon, and Enemy
+void regularKeys(unsigned char key, int x, int y) {
+    // Bomba (WASD keys)
+    if (key == 'a' || key == 'A') bombaX -= 0.05f;
+    if (key == 'd' || key == 'D') bombaX += 0.05f;
+    if (key == 'w' || key == 'W') bombaY += 0.05f;
+    if (key == 's' || key == 'S') bombaY -= 0.05f;
 
-// Function to display the end game screen
-void displayEndGame() {
-    glClear(GL_COLOR_BUFFER_BIT);
-    glColor3f(1.0f, 0.0f, 0.0f); // Red color for text
+    // Enemy (QERT keys)
+    if (key == 'q' || key == 'Q') enemyX -= 0.05f;
+    if (key == 'e' || key == 'E') enemyX += 0.05f;
+    if (key == 'r' || key == 'R') enemyY += 0.05f;
+    if (key == 't' || key == 'T') enemyY -= 0.05f;
 
-    if (playerWon) {
-        // Display "You Win" message
-        glRasterPos2f(-0.2f, 0.0f);
-        const char* message = "You Win!";
-        for (int i = 0; message[i] != '\0'; i++) {
-            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, message[i]);
-        }
-    } else {
-        // Display "You Lose" message
-        glRasterPos2f(-0.2f, 0.0f);
-        const char* message = "You Lose!";
-        for (int i = 0; message[i] != '\0'; i++) {
-            glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, message[i]);
+
+    // Fire projectiles for enemy
+    if (key == 'f' || key == 'F') {
+        for (int i = 0; i < MAX_PROJECTILES; i++) {
+            if (!enemyProjectiles[i].isActive) {
+                // Fire projectile to the right, starting from the enemy's position
+                enemyProjectiles[i] = { enemyX, enemyY, 0.05f, 0.0f, true }; // Right direction, no vertical movement
+                break;
+            }
         }
     }
 
-    glFlush();
+
+    // Timon (Spacebar to fire)
+    if (key == ' ') {
+        for (int i = 0; i < MAX_PROJECTILES; i++) {
+            if (!timonProjectiles[i].isActive) {
+                // Fire projectile from Timon towards the enemy
+                timonProjectiles[i].x = timonX;
+                timonProjectiles[i].y = timonY + 0.1f;
+
+                // Calculate direction
+                float deltaX = enemyX - timonX;
+                float deltaY = enemyY - timonY;
+                timonProjectiles[i].directionX = deltaX * 0.01f; // Scaling for speed
+                timonProjectiles[i].directionY = deltaY * 0.01f;
+
+                timonProjectiles[i].isActive = true;
+                break;
+            }
+        }
+    }
+
+    // Bomba (Enter to fire)
+    if (key == 13) {  // Enter key
+        for (int i = 0; i < MAX_PROJECTILES; i++) {
+            if (!bombaProjectiles[i].isActive) {
+                // Fire projectile from Bomba towards the enemy
+                bombaProjectiles[i].x = bombaX;
+                bombaProjectiles[i].y = bombaY + 0.1f;
+
+                // Calculate direction
+                float deltaX = enemyX - bombaX;
+                float deltaY = enemyY - bombaY;
+                bombaProjectiles[i].directionX = deltaX * 0.01f; // Scaling for speed
+                bombaProjectiles[i].directionY = deltaY * 0.01f;
+
+                bombaProjectiles[i].isActive = true;
+                break;
+            }
+        }
+    }
+
+    glutPostRedisplay();
+}
+// Update projectiles and check collisions
+void updateProjectiles() {
+    // Timon projectiles update
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (timonProjectiles[i].isActive) {
+            timonProjectiles[i].x += timonProjectiles[i].directionX;
+            timonProjectiles[i].y += timonProjectiles[i].directionY;
+
+            // Check collision with enemy
+            if (checkCollision(enemyX, enemyY, timonProjectiles[i].x, timonProjectiles[i].y, 0.1f)) {
+                timonProjectiles[i].isActive = false;
+                enemyLives--;
+                if (enemyLives <= 0) {
+                    enemyX = -0.5f; // Reset position or handle death logic
+                    enemyLives = 3; // Reset lives for simplicity
+                }
+            }
+
+            // Deactivate projectile if out of bounds
+            if (timonProjectiles[i].x > 1.0f || timonProjectiles[i].x < -1.0f ||
+                timonProjectiles[i].y > 1.0f || timonProjectiles[i].y < -1.0f) {
+                timonProjectiles[i].isActive = false;
+            }
+        }
+    }
+
+
+    // Bomba projectiles update
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (bombaProjectiles[i].isActive) {
+            bombaProjectiles[i].x += bombaProjectiles[i].directionX;
+            bombaProjectiles[i].y += bombaProjectiles[i].directionY;
+
+            // Check collision with enemy
+            if (checkCollision(enemyX, enemyY, bombaProjectiles[i].x, bombaProjectiles[i].y, 0.1f)) {
+                bombaProjectiles[i].isActive = false;
+                enemyLives--;
+                if (enemyLives <= 0) {
+                    enemyX = -0.5f; // Reset position or handle death logic
+                    enemyLives = 3; // Reset lives for simplicity
+                }
+            }
+
+            // Deactivate projectile if out of bounds
+            if (bombaProjectiles[i].x > 1.0f || bombaProjectiles[i].x < -1.0f ||
+                bombaProjectiles[i].y > 1.0f || bombaProjectiles[i].y < -1.0f) {
+                bombaProjectiles[i].isActive = false;
+            }
+        }
+    }
+
+
+    // Enemy projectiles update
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (enemyProjectiles[i].isActive) {
+            enemyProjectiles[i].x += enemyProjectiles[i].directionX;
+            enemyProjectiles[i].y += enemyProjectiles[i].directionY;
+
+            // Check collision with Timon
+            if (checkCollision(timonX, timonY, enemyProjectiles[i].x, enemyProjectiles[i].y, 0.1f)) {
+                enemyProjectiles[i].isActive = false;
+                timonLives--;
+                if (timonLives <= 0) {
+                    timonX = 0.3f; // Reset position or handle death logic
+                    timonLives = 3; // Reset lives for simplicity
+                }
+            }
+
+            // Check collision with Bomba
+            if (checkCollision(bombaX, bombaY, enemyProjectiles[i].x, enemyProjectiles[i].y, 0.1f)) {
+                enemyProjectiles[i].isActive = false;
+                bombaLives--;
+                if (bombaLives <= 0) {
+                    bombaX = 0.5f; // Reset position or handle death logic
+                    bombaLives = 3; // Reset lives for simplicity
+                }
+            }
+
+            // Deactivate projectile if out of bounds
+            if (enemyProjectiles[i].x > 1.0f || enemyProjectiles[i].x < -1.0f ||
+                enemyProjectiles[i].y > 1.0f || enemyProjectiles[i].y < -1.0f) {
+                enemyProjectiles[i].isActive = false;
+            }
+        }
+    }
 }
 
-// Function to update game state (you can call this function whenever a character dies)
-void updateGameState(bool win) {
-    gameOver = true;
-    playerWon = win;
+// Draw projectiles
+void drawProjectiles() {
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (timonProjectiles[i].isActive) {
+            glColor3f(1.0f, 0.0f, 0.0f); // Red for Timon projectiles
+            glBegin(GL_QUADS);
+            glVertex2f(timonProjectiles[i].x - 0.02f, timonProjectiles[i].y - 0.02f);
+            glVertex2f(timonProjectiles[i].x + 0.02f, timonProjectiles[i].y - 0.02f);
+            glVertex2f(timonProjectiles[i].x + 0.02f, timonProjectiles[i].y + 0.02f);
+            glVertex2f(timonProjectiles[i].x - 0.02f, timonProjectiles[i].y + 0.02f);
+            glEnd();
+        }
+
+        if (bombaProjectiles[i].isActive) {
+            glColor3f(0.0f, 0.0f, 1.0f); // Blue for Bomba projectiles
+            glBegin(GL_QUADS);
+            glVertex2f(bombaProjectiles[i].x - 0.02f, bombaProjectiles[i].y - 0.02f);
+            glVertex2f(bombaProjectiles[i].x + 0.02f, bombaProjectiles[i].y - 0.02f);
+            glVertex2f(bombaProjectiles[i].x + 0.02f, bombaProjectiles[i].y + 0.02f);
+            glVertex2f(bombaProjectiles[i].x - 0.02f, bombaProjectiles[i].y + 0.02f);
+            glEnd();
+        }
+
+        if (enemyProjectiles[i].isActive) {
+            glColor3f(1.0f, 1.0f, 0.0f); // Yellow for enemy projectiles
+            glBegin(GL_QUADS);
+            glVertex2f(enemyProjectiles[i].x - 0.02f, enemyProjectiles[i].y - 0.02f);
+            glVertex2f(enemyProjectiles[i].x + 0.02f, enemyProjectiles[i].y - 0.02f);
+            glVertex2f(enemyProjectiles[i].x + 0.02f, enemyProjectiles[i].y + 0.02f);
+            glVertex2f(enemyProjectiles[i].x - 0.02f, enemyProjectiles[i].y + 0.02f);
+            glEnd();
+        }
+    }
+}
+// Display function to show lives
+void displayLives() {
+    char buffer[50];
+    glColor3f(1.0f, 1.0f, 1.0f); // White color for text
+
+    // Display Timon lives
+    sprintf_s(buffer, "Timon Lives: %d", timonLives);
+    glRasterPos2f(-0.9f, 0.9f);
+    for (char* c = buffer; *c != '\0'; c++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c);
+
+    // Display Bomba lives
+    sprintf_s(buffer, "Bomba Lives: %d", bombaLives);
+    glRasterPos2f(-0.9f, 0.8f);
+    for (char* c = buffer; *c != '\0'; c++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c);
+
+    // Display Enemy lives
+    sprintf_s(buffer, "Enemy Lives: %d", enemyLives);
+    glRasterPos2f(-0.9f, 0.7f);
+    for (char* c = buffer; *c != '\0'; c++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c);
 }
 
 // Display function
 void display() {
-    if (gameOver) {
-        displayEndGame();
-        return;
-    }
-
     glClear(GL_COLOR_BUFFER_BIT);
+    glLoadIdentity();
 
-    // Draw SpongeBob
-    drawSpongeBob();
-    // Draw Patrick
-    drawPatrick();
+    // Draw the forest and characters
+    drawForest();
+    drawTimon();
+    drawBomba();
+    drawEnemy();
+    drawProjectiles();
+    // Display lives
+    displayLives();
 
-    glFlush();
+    glutSwapBuffers();
 }
 
-// Special key input function
-void specialKeys(int key, int x, int y) {
-    moveSpongeBob(key);
-    glutPostRedisplay();
-}
-
-// Normal key input function
-void normalKeys(unsigned char key, int x, int y) {
-    movePatrick(key, x, y);
+// Idle function
+void idle() {
+    updateProjectiles();
     glutPostRedisplay();
 }
 
 // Main function
 int main(int argc, char** argv) {
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
     glutInitWindowSize(800, 600);
-    glutInitWindowPosition(100, 100);
-    glutCreateWindow("SpongeBob and Patrick Game");
+    glutCreateWindow("Timon and Bomba Firing Projectiles");
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluOrtho2D(-1.0, 1.0, -1.0, 1.0);
+    glClearColor(0.0f, 0.5f, 1.0f, 1.0f); // Sky blue background
+    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0); // Orthographic projection
 
     glutDisplayFunc(display);
+    glutIdleFunc(idle);
     glutSpecialFunc(specialKeys);
-    glutKeyboardFunc(normalKeys);
-    glutKeyboardUpFunc(keyRelease);
+    glutKeyboardFunc(regularKeys);
 
     glutMainLoop();
     return 0;
 }
-
